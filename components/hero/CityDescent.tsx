@@ -19,6 +19,9 @@ gsap.registerPlugin(ScrollTrigger)
 // generator-watermark center, normalized in frame space — used to park the
 // district card over the watermark so it stays covered at any viewport size.
 const PIN_LENGTH = 3200
+// Share of the sequence fetched up front (the stretch a visitor scrubs through
+// first). The rest waits until they actually start descending.
+const EAGER_HEAD = 0.25
 const DESKTOP = { dir: "/frames/desktop", count: 240, fw: 1600, fh: 900, wm: { x: 0.923, y: 0.861 } }
 const MOBILE = { dir: "/frames/mobile", count: 150, fw: 760, fh: 1351, wm: { x: 0.9, y: 0.93 } }
 
@@ -59,6 +62,14 @@ export function CityDescent() {
     const images: HTMLImageElement[] = new Array(set.count)
     const loaded: boolean[] = new Array(set.count).fill(false)
     let current = -1
+    let disposed = false
+    let filled = false
+    let cardRaf = 0
+    // On a hash load (/#feed) the browser's own fragment scroll crosses the pin
+    // while we mount — that is not the visitor descending, so hold the fill
+    // until the hash has been re-applied and things have settled.
+    const hashId = decodeURIComponent(window.location.hash.slice(1))
+    const fillAfter = hashId ? performance.now() + 400 : 0
 
     const pad = (n: number) => String(n).padStart(3, "0")
 
@@ -119,18 +130,14 @@ export function CityDescent() {
       wrap.style.bottom = `${Math.round(bottom)}px`
     }
 
-    // Request frames in two passes — every 8th frame first for coarse coverage,
-    // then the fill — so on slow networks nearestLoaded() degrades to a sparse
-    // sequence instead of a blank canvas while late frames stream in.
-    const order: number[] = []
-    for (let i = 0; i < set.count; i += 8) order.push(i)
-    for (let i = 0; i < set.count; i++) if (i % 8 !== 0) order.push(i)
-    for (const i of order) {
+    const load = (i: number) => {
+      if (images[i]) return
       const img = new Image()
       img.decoding = "async"
       if (i === 0) img.fetchPriority = "high" // pairs with the <link rel="preload"> below
       img.src = `${set.dir}/f-${pad(i + 1)}.webp`
       img.onload = () => {
+        if (disposed) return
         loaded[i] = true
         if (current < 0) {
           current = 0
@@ -140,6 +147,41 @@ export function CityDescent() {
         }
       }
       images[i] = img
+    }
+
+    // Up front: frame 1, then every 8th frame for coarse coverage (so on slow
+    // networks nearestLoaded() degrades to a sparse sequence instead of a blank
+    // canvas), then the opening stretch in full. Reduced motion only ever shows
+    // frame 1, so that is all it fetches.
+    const head = Math.ceil(set.count * EAGER_HEAD)
+    load(0)
+    if (!reduce) {
+      for (let i = 8; i < set.count; i += 8) load(i)
+      for (let i = 1; i < head; i++) load(i)
+    }
+    // The remaining frames, requested once the visitor starts the descent.
+    const fill = () => {
+      if (filled || disposed) return
+      filled = true
+      // Nearest to the current frame first — a visitor entering from below
+      // (scrolling up out of the feed) needs the end of the sequence, not frame 61.
+      const rest: number[] = []
+      for (let i = head; i < set.count; i++) rest.push(i)
+      rest.sort((a, b) => Math.abs(a - current) - Math.abs(b - current))
+      for (const i of rest) load(i)
+    }
+
+    // Abort in-flight frame requests and drop their handlers so nothing draws
+    // into an unmounted canvas after a route change.
+    const dispose = () => {
+      disposed = true
+      cancelAnimationFrame(cardRaf)
+      window.removeEventListener("resize", onResize)
+      for (const img of images) {
+        if (!img) continue
+        img.onload = null
+        img.src = ""
+      }
     }
 
     sizeCanvas()
@@ -156,7 +198,7 @@ export function CityDescent() {
     if (reduce) {
       current = 0
       draw(0)
-      return () => window.removeEventListener("resize", onResize)
+      return dispose
     }
 
     let activeCard = -1
@@ -169,7 +211,7 @@ export function CityDescent() {
       if (cardText.current) {
         gsap.fromTo(cardText.current, { autoAlpha: 0, x: 12 }, { autoAlpha: 1, x: 0, duration: 0.4, ease: "power2.out" })
       }
-      requestAnimationFrame(placeCard) // label width changed → re-center over watermark
+      cardRaf = requestAnimationFrame(placeCard) // label width changed → re-center over watermark
     }
 
     const st = ScrollTrigger.create({
@@ -186,13 +228,27 @@ export function CityDescent() {
           current = idx
           draw(idx)
         }
+        // scrollY guard: ScrollTrigger also calls onUpdate with a transient progress
+        // while it measures the pin on refresh — that is not the visitor descending.
+        if (window.scrollY > 0 && self.progress > 0 && self.progress < 1 && performance.now() > fillAfter) fill()
         updateCard(self.progress)
-        gsap.set(hudEl, { opacity: gsap.utils.clamp(0, 1, 1 - self.progress / 0.15), yPercent: -self.progress * 12 })
+        // Once (all but) faded, take the HUD out of the tree: its links must not stay
+        // clickable/focusable while invisible, and its pulse should stop running.
+        const hudOpacity = gsap.utils.clamp(0, 1, 1 - self.progress / 0.15)
+        gsap.set(hudEl, { opacity: hudOpacity, yPercent: -self.progress * 12, display: hudOpacity < 0.02 ? "none" : "block" })
       },
     })
 
+    // Arriving on a hash link (/#feed from another page, or a direct load): the pin
+    // spacer just pushed the target ~3200px further down, so the browser's own hash
+    // scroll landed short. Re-apply it once the pin is in place.
+    const hashRaf = hashId
+      ? requestAnimationFrame(() => document.getElementById(hashId)?.scrollIntoView({ behavior: "instant" }))
+      : 0
+
     return () => {
-      window.removeEventListener("resize", onResize)
+      cancelAnimationFrame(hashRaf)
+      dispose()
       st.kill()
     }
   }, [])

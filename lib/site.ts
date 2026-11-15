@@ -1,5 +1,7 @@
 export const site = {
   name: "Wahnahbe",
+  person: "Joshua Gutierrez",
+  role: "Data scientist & ML engineer",
   kana: "ワナビー",
   tagline: "Fun, useful AI — built & explained in public.",
   building: "SQL Battle Royale",

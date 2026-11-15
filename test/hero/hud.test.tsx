@@ -8,6 +8,12 @@ describe("HeroHud", () => {
     expect(screen.getByRole("heading", { level: 1, name: /WAHNAHBE/ })).toBeInTheDocument()
   })
 
+  it("says who this is and what they do", () => {
+    render(<HeroHud />)
+    expect(screen.getByText(/Joshua Gutierrez/)).toBeInTheDocument()
+    expect(screen.getByText(/data scientist/i)).toBeInTheDocument()
+  })
+
   it("renders the building pill and safe external links", () => {
     render(<HeroHud />)
     expect(screen.getByText(/BUILDING/)).toBeInTheDocument()

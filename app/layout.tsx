@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google"
 import "./globals.css"
 import { LenisProvider } from "@/lib/lenis"
 import { TopBar } from "@/components/hud/TopBar"
+import { SiteFooter } from "@/components/hud/SiteFooter"
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"], display: "swap" })
 const jetbrains = JetBrains_Mono({ variable: "--font-jetbrains", subsets: ["latin"], display: "swap" })
@@ -21,10 +22,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${jetbrains.variable} scanlines antialiased`}>
+      <body className={`${inter.variable} ${jetbrains.variable} scanlines flex min-h-screen flex-col antialiased`}>
         <LenisProvider>
           <TopBar />
           {children}
+          <SiteFooter />
         </LenisProvider>
       </body>
     </html>

@@ -38,7 +38,7 @@ Project case studies live in `content/projects/*.mdx` and render at `/p/[slug]`.
 
 ## Hero
 
-`<CityHero>` renders `<CityDescent>` — a GSAP ScrollTrigger-pinned canvas that scrubs through a committed WebP frame sequence (240 desktop frames at 1600×900, 150 portrait mobile frames) as you scroll, descending from above the clouds to The Rust. District title cards swap as you pass each layer of the city. The first frame is SSR-preloaded; the rest stream in a coarse-then-fill order so slow networks still paint. `prefers-reduced-motion` gets a static frame instead. `CityHero` is a swap boundary — the renderer can be replaced (e.g. with an R3F scene) without touching callers.
+`<CityHero>` renders `<CityDescent>` — a GSAP ScrollTrigger-pinned canvas that scrubs through a committed WebP frame sequence (240 desktop frames at 1600×900, 150 portrait mobile frames) as you scroll, descending from above the clouds to The Rust. District title cards swap as you pass each layer of the city. The first frame is SSR-preloaded; a coarse pass plus the opening quarter load up front, and the rest stream in once you start descending, so slow networks still paint. `prefers-reduced-motion` gets a static frame instead. `CityHero` is a swap boundary — the renderer can be replaced (e.g. with an R3F scene) without touching callers.
 
 ## Run locally
 
