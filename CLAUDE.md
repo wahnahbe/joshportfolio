@@ -33,9 +33,9 @@ Run `npm run build` after every component change. Zero errors is the gate — a 
 
 - GSAP ScrollTrigger **pins** the hero (`PIN_LENGTH` 3200px runway, `scrub: 0.5`), synced to Lenis via the shared `gsap.ticker` in `lib/lenis.tsx`. Scroll progress maps to a frame index drawn onto a `<canvas>` (decorative, `aria-hidden`; DPR capped at 2; cover-fit math).
 - **Two committed frame sets** (counts/dimensions are constants in `CityDescent.tsx`): desktop `/frames/desktop/f-001..240.webp` (1600×900) and mobile `/frames/mobile/f-001..150.webp` (760×1351), chosen at a 768px breakpoint.
-- **Preload:** frame 1 is `<link rel="preload">`-hoisted from SSR (media-gated per breakpoint, `fetchPriority` high) so the canvas paints before hydration; the rest stream in two passes (every 8th frame, then the fill) and `nearestLoaded()` draws the closest decoded frame meanwhile.
-- **Reduced motion:** no pin, no scrub — frame 0 drawn statically.
-- **District cards** (`CARDS`) swap by scroll progress and are positioned over the clip's corner watermark (`wm` coords, normalized frame space) so it stays covered at any viewport. The HUD (`HeroHud.tsx` — h1 wordmark, building pill, socials) fades out over the first 15% of the descent.
+- **Preload:** frame 1 is `<link rel="preload">`-hoisted from SSR (media-gated per breakpoint, `fetchPriority` high) so the canvas paints before hydration; then every 8th frame (coarse coverage) and the first quarter of the sequence (`EAGER_HEAD`) load up front; the remaining fill is requested (nearest-to-current-frame first) only once the visitor scrolls into the descent — held for 400ms on a hash load so the browser's own fragment scroll doesn't count — and `nearestLoaded()` draws the closest decoded frame meanwhile. Unmount aborts in-flight frame requests. `/frames/*` is served with a one-day `Cache-Control` (`next.config.ts`) — after regenerating frames, expect up to a day of cached old frames for returning visitors.
+- **Reduced motion:** no pin, no scrub — frame 0 drawn statically, and it is the only frame fetched.
+- **District cards** (`CARDS`) swap by scroll progress and are positioned over the clip's corner watermark (`wm` coords, normalized frame space) so it stays covered at any viewport. The HUD (`HeroHud.tsx` — h1 wordmark, name + role line, building pill, socials) fades out over the first 15% of the descent and is set to `display: none` once fully faded (so its links aren't clickable while invisible). A `/#feed` hash is re-applied after the pin mounts, since the pin spacer moves the target.
 - **Overlays:** `HeroOverlays` (`heroLayers.tsx`) paints the legibility vignette, `CameraGrid` (`heroFx.tsx`), faint scanlines, and the bottom fade into `--bg`.
 
 **Regenerating frames:** the source clips are gitignored (`/public/*.mp4`, `/public/*.png` — they exist only on the local machine; back them up). Recipe (desktop; mobile is the same with the portrait clip and `scale=760:-2`):
@@ -63,20 +63,22 @@ The feed renders a reverse-chronological list of typed posts. Every post is one 
 
 ### HUD primitives — `components/hud/`
 
-- `TopBar` — site name + kana + nav links
+- `TopBar` — site name + kana + nav links (`feed` → `/#feed`, about, résumé, gh; kana hides below 339px and `gh` below 374px so the bar stays one row)
+- `FeedLink` — the client `feed` link: on `/` it scrolls to `#feed` directly (a repeat router navigation to the same hash is a no-op), elsewhere it navigates to `/#feed`
+- `SiteFooter` — name, email, résumé, GitHub; rendered on every page from `app/layout.tsx`
 - `CornerFrame` — decorative corner-bracket wrapper (used in `/about`)
 - `TypeTag` — color-coded badge per post type
 
 ### Data
 
-- `lib/site.ts` — `site` object (name, socials, resume URL) and `about` object (bio + arc)
+- `lib/site.ts` — `site` object (name, person + role, socials, resume URL) and `about` object (bio + arc)
 - `lib/posts/schema.ts` — Zod schemas + `Post` type (source of truth for types)
 - `lib/posts/load.ts` — server-only MDX loader (`import "server-only"`); throws with the filename on invalid frontmatter
-- `lib/posts/filter.ts` — filter chips logic
-- `lib/posts/relativeTime.ts` — date → human label
+- `lib/posts/filter.ts` — filter chips logic (`Feed` only renders chips for post types that have at least one post)
+- `lib/posts/relativeTime.ts` — date → human label (client-only: `PostRow` prerenders `YYYY-MM` and swaps in the relative label after hydration, because the page is static)
 - `lib/projects/schema.ts` — Zod `projectSchema` + `ProjectMeta`/`Project` types
 - `lib/projects/load.ts` — server-only case-study loader; validates like the posts loader, `null` for a missing slug
-- `lib/lenis.tsx` — `LenisProvider` client component; wraps app in `app/layout.tsx`; drives Lenis from `gsap.ticker` and registers ScrollTrigger so hero scrub and smooth scroll share one clock
+- `lib/lenis.tsx` — `LenisProvider` client component; wraps app in `app/layout.tsx`; drives Lenis from `gsap.ticker` (only while a wheel scroll is in flight — the tick removes itself when Lenis settles) and registers ScrollTrigger so hero scrub and smooth scroll share one clock; under `prefers-reduced-motion` Lenis is not created and scrolling is native
 
 ## Design Tokens
 

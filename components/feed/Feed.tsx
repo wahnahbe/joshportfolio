@@ -1,7 +1,7 @@
 "use client"
 import { useState } from "react"
 import type { Post } from "@/lib/posts/schema"
-import { filterPosts, type Filter } from "@/lib/posts/filter"
+import { FILTERS, filterPosts, type Filter } from "@/lib/posts/filter"
 import { FilterChips } from "@/components/feed/FilterChips"
 import { PostRow } from "@/components/feed/PostRow"
 import { BuildCard } from "@/components/feed/cards/BuildCard"
@@ -22,9 +22,11 @@ function Card({ post }: { post: Post }) {
 export function Feed({ posts }: { posts: Post[] }) {
   const [filter, setFilter] = useState<Filter>("All")
   const visible = filterPosts(posts, filter)
+  // A chip that filters to nothing is a dead control — only offer types that have posts.
+  const available = FILTERS.filter((f) => f === "All" || filterPosts(posts, f).length > 0)
   return (
-    <section className="mx-auto max-w-3xl px-5 py-16">
-      <FilterChips active={filter} onChange={setFilter} />
+    <section id="feed" className="mx-auto max-w-3xl px-5 py-16">
+      <FilterChips active={filter} onChange={setFilter} filters={available} />
       <ul>
         {visible.map((post) => (
           <PostRow key={post.id} post={post}><Card post={post} /></PostRow>

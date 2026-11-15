@@ -37,7 +37,9 @@
   --font-mono: var(--font-jetbrains);
 }
 
-html { scroll-behavior: smooth; }
+/* No `scroll-behavior: smooth` on html. Lenis writes scrollTop every frame; native
+   smooth scrolling on top of that restarts its own easing on each write, so the
+   page trails wheel and trackpad input by over a second. */
 body {
   background: var(--bg);
   color: var(--text);
@@ -52,8 +54,4 @@ body {
   position: fixed; inset: 0; z-index: 9999; pointer-events: none;
   opacity: 0.5;
   background: repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 3px);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
 }

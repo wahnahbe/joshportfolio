@@ -47,6 +47,15 @@ export function HeroHud() {
         </span>
       </h1>
       <p
+        className="mt-3 font-mono text-xs uppercase tracking-[0.2em] text-accent"
+        style={{ textShadow: "0 1px 10px rgba(0,0,0,0.95)" }}
+      >
+        {/* one line on wide screens; name over role (no mid-phrase wrap) on phones */}
+        <span className="block sm:inline">{site.person}</span>
+        <span className="hidden sm:inline"> · </span>
+        <span className="block sm:inline">{site.role}</span>
+      </p>
+      <p
         className="mt-3 max-w-md text-sm text-text/90"
         style={{ textShadow: "0 1px 10px rgba(0,0,0,0.95)" }}
       >
@@ -66,7 +75,7 @@ export function HeroHud() {
           ✉ email
         </a>
       </div>
-      <div className="absolute bottom-6 left-0 right-0 animate-pulse font-mono text-[10px] tracking-[0.18em] text-accent-2/80">
+      <div className="absolute bottom-28 left-0 right-0 font-mono motion-safe:animate-pulse md:bottom-6 text-[10px] tracking-[0.18em] text-accent-2/80">
         ↓ DESCEND INTO THE FEED
       </div>
     </div>

@@ -38,4 +38,14 @@ describe("Feed filtering", () => {
     expect(screen.getByText("Japanese Tutor")).toBeInTheDocument()
     expect(screen.getByText("How I built it")).toBeInTheDocument()
   })
+
+  it("only offers chips for post types that exist", () => {
+    render(<Feed posts={posts} />)
+    // fixture has a build + a video — no "post" or "log" entries
+    expect(screen.getByRole("button", { name: "All" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Projects" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Videos" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Posts" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Logs" })).toBeNull()
+  })
 })
